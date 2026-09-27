@@ -1,7 +1,9 @@
 import axios from "axios";
 
+const TUNNEL_URL = "https://forums-crossword-times-giants.trycloudflare.com";
+
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: `${TUNNEL_URL}/api`,
   headers: { "Content-Type": "application/json" },
 });
 

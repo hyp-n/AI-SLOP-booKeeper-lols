@@ -22,6 +22,7 @@
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.17",
     "daisyui": "^5.0.0",

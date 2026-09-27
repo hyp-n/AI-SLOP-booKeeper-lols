@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { lookup_isbn, add_book_by_isbn } from "../api/client";
+import { lookupIsbn, addBookByIsbn } from "../api/client";
 
 export default function CameraScanner({ onScan, onClose }) {
   const [isScanning, setIsScanning] = useState(false);
