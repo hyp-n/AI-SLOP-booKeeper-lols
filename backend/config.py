@@ -9,15 +9,10 @@ PROJECT_DIR = os.path.dirname(BASE_DIR)
 DATA_DIR = os.path.join(PROJECT_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# MongoDB configuration
-MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/bookeeper")
-MONGODB_DB_NAME = os.environ.get("MONGODB_DB_NAME", "bookeeper")
-
-# An Atlas `mongodb+srv://` URI often has no database in its path. Flask-PyMongo
-# resolves the database from the URI, so fall back to the explicit name rather
-# than leaving `mongo.db` as None (which fails only on the first query).
-if "/" not in MONGODB_URI.split("://", 1)[-1].split("?", 1)[0].split("@")[-1]:
-    MONGODB_URI = f"{MONGODB_URI.rstrip('/')}/{MONGODB_DB_NAME}"
+# PostgreSQL configuration (Supabase or local)
+# Format: postgresql+pg8000://user:password@host:port/database
+# We use pg8000 (pure Python driver) to avoid psycopg2 compilation issues
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+pg8000://postgres:postgres@localhost:5432/bookeeper")
 
 # SECRET_KEY must stay stable across restarts or every issued JWT is invalidated
 # on the next boot. Generate once and cache it on disk, never per-process.

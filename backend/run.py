@@ -2,12 +2,11 @@ import os
 
 from flask import Flask, send_from_directory
 from flask_cors import CORS
-from flask_pymongo import PyMongo
 from flask_socketio import SocketIO
 
-from config import MONGODB_URI, SECRET_KEY, ALLOWED_ORIGINS, FLASK_DEBUG
+from config import DATABASE_URL, SECRET_KEY, ALLOWED_ORIGINS, FLASK_DEBUG
+from models import db
 
-mongo = PyMongo()
 socketio = SocketIO()
 
 
@@ -19,13 +18,13 @@ def create_app():
         ),
         static_url_path="",
     )
-    app.config["MONGO_URI"] = MONGODB_URI
+    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SECRET_KEY"] = SECRET_KEY
     app.config["JSON_SORT_KEYS"] = False
 
     CORS(app, resources={r"/api/*": {"origins": ALLOWED_ORIGINS}})
-    mongo.init_app(app)
-    app.mongo = mongo
+    db.init_app(app)
 
     # Function-level imports avoid circular imports between blueprints
     from routes.books import books_bp
@@ -53,6 +52,15 @@ def create_app():
     )
     register_socket_handlers(socketio)
 
+    with app.app_context():
+        try:
+            db.create_all()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Could not create database tables (database may not be available): %s", e
+            )
+
     @app.route("/")
     def serve_frontend():
         return send_from_directory(app.static_folder, "index.html")
@@ -62,7 +70,6 @@ def create_app():
         full = os.path.join(app.static_folder, path)
         if os.path.isfile(full):
             return send_from_directory(app.static_folder, path)
-        # SPA fallback: unknown paths are client-side routes
         return send_from_directory(app.static_folder, "index.html")
 
     return app

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getConversations, getMessages, sendMessage, createConversation, getFriends, addToGroup, renameGroup } from "../api/client";
 
@@ -11,7 +11,9 @@ export default function ChatPage() {
   const [friends, setFriends] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [polling, setPolling] = useState(true);
   const messagesEndRef = useRef(null);
+  const pollingRef = useRef(null);
 
   useEffect(() => {
     loadData();
@@ -22,6 +24,33 @@ export default function ChatPage() {
       loadMessages(convId);
     }
   }, [convId]);
+
+  // Poll for new messages every 3 seconds (works without WebSockets)
+  useEffect(() => {
+    if (!convId || !polling) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const { data } = await getMessages(convId);
+        setMessages(data);
+      } catch (err) {
+        // Silently fail on polling errors
+      }
+    }, 3000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [convId, polling]);
 
   useEffect(() => {
     scrollToBottom();
@@ -66,7 +95,7 @@ export default function ChatPage() {
 
     try {
       const { data } = await sendMessage(convId, newMessage.trim());
-      setMessages([...messages, data]);
+      setMessages((prev) => [...prev, data]);
       setNewMessage("");
     } catch (err) {
       console.error("Failed to send message:", err);
@@ -170,25 +199,29 @@ export default function ChatPage() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.sender === activeConv.participant_details?.[0]?.id ? "justify-end" : "justify-start"}`}
-                >
+              {messages.length === 0 ? (
+                <p className="text-center text-base-content/50 py-8">No messages yet</p>
+              ) : (
+                messages.map((msg) => (
                   <div
-                    className={`max-w-[70%] rounded-lg p-3 ${
-                      msg.sender === activeConv.participant_details?.[0]?.id
-                        ? "bg-primary text-primary-content"
-                        : "bg-base-200"
-                    }`}
+                    key={msg.id}
+                    className={`flex ${msg.sender === activeConv.participant_details?.[0]?.id ? "justify-end" : "justify-start"}`}
                   >
-                    <p className="text-sm">{msg.content}</p>
-                    <p className="text-xs opacity-60 mt-1">
-                      {new Date(msg.created_at).toLocaleTimeString()}
-                    </p>
+                    <div
+                      className={`max-w-[70%] rounded-lg p-3 ${
+                        msg.sender === activeConv.participant_details?.[0]?.id
+                          ? "bg-primary text-primary-content"
+                          : "bg-base-200"
+                      }`}
+                    >
+                      <p className="text-sm">{msg.content}</p>
+                      <p className="text-xs opacity-60 mt-1">
+                        {new Date(msg.created_at).toLocaleTimeString()}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
               <div ref={messagesEndRef} />
             </div>
 

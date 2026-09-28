@@ -40,7 +40,7 @@ def main():
     print()
 
     # --- 1. Check dependencies ---
-    print("[1/4] Checking dependencies...")
+    print("[1/5] Checking dependencies...")
 
     python = check_command("python3") or check_command("python")
     if not python:
@@ -59,29 +59,45 @@ def main():
         print("  ERROR: npm is required but not installed.")
         sys.exit(1)
 
+    # Check MongoDB
+    mongo = check_command("mongod") or check_command("mongo")
+    if not mongo:
+        print("  WARNING: MongoDB not found in PATH.")
+        print("  You'll need MongoDB running locally or a MongoDB Atlas URI.")
+        print("  Local install: https://www.mongodb.com/try/download/community")
+        print("  Atlas (cloud): https://www.mongodb.com/atlas")
+    else:
+        print(f"  mongodb: {mongo}")
+
     print(f"  python: {python}")
     print(f"  node:   {node}")
     print(f"  npm:    {npm}")
     print()
 
     # --- 2. Install Python dependencies ---
-    print("[2/4] Installing Python dependencies...")
+    print("[2/5] Installing Python dependencies...")
     run([python, "-m", "pip", "install", "-r", "backend/requirements.txt"])
     print()
 
     # --- 3. Install & build frontend ---
-    print("[3/4] Installing frontend dependencies...")
+    print("[3/5] Installing frontend dependencies...")
     run([npm, "install"], cwd="frontend")
     print()
 
-    print("[4/4] Building frontend...")
+    print("[4/5] Building frontend...")
     run([npm, "run", "build"], cwd="frontend")
     print()
 
-    # --- 4. Done ---
+    # --- 5. Done ---
     print("===============================================")
     print("  Installation complete!")
     print("===============================================")
+    print()
+    print("  IMPORTANT: Start MongoDB before running the app!")
+    print("  macOS:  brew services start mongodb-community")
+    print("  Linux:  sudo systemctl start mongod")
+    print("  Windows: net start MongoDB")
+    print("  Or set MONGODB_URI in backend/.env to a MongoDB Atlas URI")
     print()
     print("  Start the app:")
     print(f"    cd backend && {python} run.py")

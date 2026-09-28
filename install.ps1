@@ -13,7 +13,7 @@ Write-Host "===============================================" -ForegroundColor Cy
 
 # --- 1. Check dependencies ---
 Write-Host ""
-Write-Host "[1/4] Checking dependencies..." -ForegroundColor Yellow
+Write-Host "[1/5] Checking dependencies..." -ForegroundColor Yellow
 
 $python = Get-Command python -ErrorAction SilentlyContinue
 if (-not $python) {
@@ -38,31 +38,49 @@ if (-not $npm) {
     exit 1
 }
 
+# Check MongoDB
+$mongo = Get-Command mongod -ErrorAction SilentlyContinue
+if (-not $mongo) {
+    $mongo = Get-Command mongo -ErrorAction SilentlyContinue
+}
+if (-not $mongo) {
+    Write-Host "  WARNING: MongoDB not found in PATH." -ForegroundColor Yellow
+    Write-Host "  You'll need MongoDB running locally or a MongoDB Atlas URI." -ForegroundColor Yellow
+    Write-Host "  Local install: https://www.mongodb.com/try/download/community" -ForegroundColor Yellow
+    Write-Host "  Atlas (cloud): https://www.mongodb.com/atlas" -ForegroundColor Yellow
+} else {
+    Write-Host "  mongodb: $($mongo.Source)"
+}
+
 Write-Host "  python: $($python.Source)"
 Write-Host "  node:   $($node.Source)"
 Write-Host "  npm:    $($npm.Source)"
 
 # --- 2. Install Python dependencies ---
 Write-Host ""
-Write-Host "[2/4] Installing Python dependencies..." -ForegroundColor Yellow
+Write-Host "[2/5] Installing Python dependencies..." -ForegroundColor Yellow
 & $python.Source -m pip install -r backend/requirements.txt
 
 # --- 3. Install & build frontend ---
 Write-Host ""
-Write-Host "[3/4] Installing frontend dependencies..." -ForegroundColor Yellow
+Write-Host "[3/5] Installing frontend dependencies..." -ForegroundColor Yellow
 Set-Location frontend
 & $npm.Source install
 
 Write-Host ""
-Write-Host "[4/4] Building frontend..." -ForegroundColor Yellow
+Write-Host "[4/5] Building frontend..." -ForegroundColor Yellow
 & $npm.Source run build
 Set-Location ..
 
-# --- 4. Done ---
+# --- 5. Done ---
 Write-Host ""
 Write-Host "===============================================" -ForegroundColor Green
 Write-Host "  Installation complete!" -ForegroundColor Green
 Write-Host "===============================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "  IMPORTANT: Start MongoDB before running the app!" -ForegroundColor Yellow
+Write-Host "  Windows: net start MongoDB"
+Write-Host "  Or set MONGODB_URI in backend/.env to a MongoDB Atlas URI"
 Write-Host ""
 Write-Host "  Start the app:"
 Write-Host "    cd backend; python run.py"

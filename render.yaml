@@ -1,0 +1,41 @@
+# Render.com deployment configuration (native Python - NO Docker needed)
+# Deploy: push to GitHub, connect repo at render.com
+# Free tier: Web Service + Static Site
+
+services:
+  # Backend API + WebSocket server (native Python)
+  - type: web
+    name: bookeeper-api
+    runtime: python
+    buildCommand: |
+      pip install -r backend/requirements.txt
+      cd frontend && npm install && npm run build
+    startCommand: cd backend && gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT run:create_app()
+    plan: free
+    region: oregon
+    envVars:
+      - key: MONGODB_URI
+        sync: false  # Set in Render dashboard (MongoDB Atlas URI)
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: "https://bookeeper-frontend.onrender.com,http://localhost:5173"
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    healthCheckPath: /api/books/
+    autoDeploy: true
+
+  # Frontend static site
+  - type: static
+    name: bookeeper-frontend
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    plan: free
+    region: oregon
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: "https://bookeeper-api.onrender.com/api"
+    pullRequestPreviewsEnabled: true
+    autoDeploy: true

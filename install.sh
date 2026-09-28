@@ -14,7 +14,7 @@ echo "==============================================="
 
 # --- 1. Check dependencies ---
 echo ""
-echo "[1/4] Checking dependencies..."
+echo "[1/5] Checking dependencies..."
 
 if ! command -v python3 &>/dev/null; then
   echo "ERROR: python3 is required but not installed."
@@ -38,31 +38,46 @@ if ! command -v npm &>/dev/null; then
   exit 1
 fi
 
+# Check MongoDB
+if ! command -v mongod &>/dev/null && ! command -v mongo &>/dev/null; then
+  echo "  WARNING: MongoDB not found in PATH."
+  echo "  You'll need MongoDB running locally or a MongoDB Atlas URI."
+  echo "  Local install: https://www.mongodb.com/try/download/community"
+  echo "  Atlas (cloud): https://www.mongodb.com/atlas"
+else
+  echo "  ✓ mongodb: $(command -v mongod || command -v mongo)"
+fi
+
 echo "  ✓ python3: $(python3 --version)"
 echo "  ✓ node:    $(node --version)"
 echo "  ✓ npm:     $(npm --version)"
 
 # --- 2. Install Python dependencies ---
 echo ""
-echo "[2/4] Installing Python dependencies..."
+echo "[2/5] Installing Python dependencies..."
 pip3 install -r backend/requirements.txt
 
 # --- 3. Install & build frontend ---
 echo ""
-echo "[3/4] Installing frontend dependencies..."
+echo "[3/5] Installing frontend dependencies..."
 cd frontend
 npm install
 
 echo ""
-echo "[4/4] Building frontend..."
+echo "[4/5] Building frontend..."
 npm run build
 cd ..
 
-# --- 4. Done ---
+# --- 5. Done ---
 echo ""
 echo "==============================================="
 echo "  Installation complete!"
 echo "==============================================="
+echo ""
+echo "  IMPORTANT: Start MongoDB before running the app!"
+echo "  macOS:  brew services start mongodb-community"
+echo "  Linux:  sudo systemctl start mongod"
+echo "  Or set MONGODB_URI in backend/.env to a MongoDB Atlas URI"
 echo ""
 echo "  Start the app:"
 echo "    cd backend && python3 run.py"

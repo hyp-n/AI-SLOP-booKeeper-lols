@@ -1,11 +1,19 @@
 import axios from "axios";
 
-const TUNNEL_URL = "https://way-craft-psychological-cult.trycloudflare.com";
+// Use relative URL in production (served by Flask), or Vite proxy in dev
+// For GitHub Pages: VITE_API_BASE_URL must be set to the backend URL
+// For local dev: defaults to /api (proxied by Vite)
+const baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const api = axios.create({
-  baseURL: `${TUNNEL_URL}/api`,
+  baseURL,
   headers: { "Content-Type": "application/json" },
 });
+
+// Log API configuration in development
+if (import.meta.env.DEV) {
+  console.log("[API] Base URL:", baseURL);
+}
 
 // Auth token interceptor
 api.interceptors.request.use((config) => {
