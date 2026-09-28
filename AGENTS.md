@@ -35,16 +35,16 @@ cd frontend && npm run dev
 - **Frontend**: React 18 + Vite + Tailwind CSS + DaisyUI, built to `frontend/dist`
 - **Database**: PostgreSQL (Supabase or local) — SQLAlchemy models in `backend/models.py`
 - **API prefix**: all routes under `/api/` (e.g., `/api/books/`, `/api/collections/`)
-- **Real-time**: Flask-SocketIO with eventlet for WebSocket support
+- **Real-time**: Flask-SocketIO (threading async mode) for WebSocket support
 
 ## Key Conventions
 
 - **No tests, no linter, no formatter configured** — don't look for these commands
 - **No env vars required** — `SECRET_KEY` has a dev default in `config.py` (auto-generated & cached in `data/.secret_key`)
 - **DaisyUI themes**: toggle via `data-theme` attribute on `<html>`, persisted in `localStorage` under `"theme"`
-- **Book serialization**: `book_to_dict()` embeds reading progress fields (`reading_status`, `current_page`, `reading_percentage`) — don't duplicate these in API responses
-- **Collection ordering**: `Collection.order_index` drives sort order; the `/api/collections/<id>/reorder` endpoint accepts `{book_ids: [...]}` array
-- **PostgreSQL IDs**: All IDs are UUID strings — SQLAlchemy generates them via `generate_id()`
+- **Book serialization**: `Book.to_dict()` embeds reading progress fields (`reading_status`, `current_page`, `reading_percentage`) — don't duplicate these in API responses
+- **Collection ordering**: `BookCollection.order_index` drives sort order; the `/api/collections/<id>/reorder` endpoint accepts `{book_ids: [...]}` array
+- **PostgreSQL IDs**: Most IDs are UUID strings — SQLAlchemy generates them via `generate_id()`. Join tables (`collection_books`, `conversation_participants`, `ebook_sources`) use auto-increment integer IDs.
 
 ## External Services
 
