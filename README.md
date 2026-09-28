@@ -1,3 +1,5 @@
+# Hey everybody, i made this project for fun lol it is fully ai, by opencode, so not reccomend using this
+
 # booKeeper
 
 A self-hosted personal book manager. Scan ISBNs, organize collections, track reading progress, and find ebook downloads.
