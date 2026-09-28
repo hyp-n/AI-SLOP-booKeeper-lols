@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const TUNNEL_URL = "https://forums-crossword-times-giants.trycloudflare.com";
+const TUNNEL_URL = "https://way-craft-psychological-cult.trycloudflare.com";
 
 const api = axios.create({
   baseURL: `${TUNNEL_URL}/api`,
