@@ -22,11 +22,6 @@ def get_friends(user):
     return jsonify([f.to_dict() for f in friends])
 
 
-@social_bp.errorhandler(404)
-def social_not_found(e):
-    return jsonify({"error": "Resource not found"}), 404
-
-
 @social_bp.route("/friends/requests", methods=["GET"])
 @token_required
 def get_friend_requests(user):
@@ -50,12 +45,6 @@ def get_friend_requests(user):
             "created_at": fr.created_at.isoformat() if fr.created_at else None,
         } for fr in sent],
     })
-
-
-@social_bp.errorhandler(500)
-def social_internal_error(e):
-    db.session.rollback()
-    return jsonify({"error": "Internal server error"}), 500
 
 
 @social_bp.route("/friends/request", methods=["POST"])

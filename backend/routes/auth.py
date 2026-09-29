@@ -95,11 +95,6 @@ def login():
     return jsonify({"token": token, "user": user.to_dict()})
 
 
-@auth_bp.errorhandler(400)
-def auth_bad_request(e):
-    return jsonify({"error": "Bad request"}), 400
-
-
 @auth_bp.route("/me", methods=["GET"])
 @token_required
 def get_me(user):

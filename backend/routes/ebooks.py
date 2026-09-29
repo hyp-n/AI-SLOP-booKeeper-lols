@@ -49,11 +49,6 @@ def search_ebooks():
     return jsonify(results)
 
 
-@ebooks_bp.errorhandler(400)
-def ebook_bad_request(e):
-    return jsonify({"error": "Bad request"}), 400
-
-
 @ebooks_bp.route("/book/<book_id>", methods=["GET"])
 def get_book_ebooks(book_id):
     """Get saved ebook sources for a book."""

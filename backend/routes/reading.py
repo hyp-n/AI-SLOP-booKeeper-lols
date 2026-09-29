@@ -23,11 +23,6 @@ def get_progress(book_id):
     })
 
 
-@reading_bp.errorhandler(404)
-def reading_not_found(e):
-    return jsonify({"error": "Reading progress not found"}), 404
-
-
 @reading_bp.route("/<book_id>", methods=["PUT"])
 def update_progress(book_id):
     """Update reading progress for a book."""
@@ -93,11 +88,6 @@ def update_progress(book_id):
         "finished_at": book.reading_finished_at.isoformat() if book.reading_finished_at else None,
         "updated_at": book.reading_updated_at.isoformat() if book.reading_updated_at else None,
     })
-
-
-@reading_bp.errorhandler(400)
-def reading_bad_request(e):
-    return jsonify({"error": "Bad request"}), 400
 
 
 @reading_bp.route("/stats", methods=["GET"])

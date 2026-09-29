@@ -177,7 +177,7 @@ export default function LibraryPage() {
                 <p className="font-medium truncate">{book.title}</p>
                 <p className="text-sm text-base-content/60 truncate">{book.author}</p>
               </div>
-              <span className="badge">{book.reading_status}</span>
+              <span className="badge">{book.reading_status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
               {book.page_count && <span className="text-sm text-base-content/50">{book.page_count}p</span>}
             </div>
           ))}

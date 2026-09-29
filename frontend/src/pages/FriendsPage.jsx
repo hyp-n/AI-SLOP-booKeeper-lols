@@ -135,8 +135,12 @@ export default function FriendsPage() {
           <div className="space-y-2">
             {requests.received.map((req) => (
               <div key={req.id} className="card bg-base-100 shadow-sm p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-content">
+                  {req.sender?.[0]?.toUpperCase() || "?"}
+                </div>
                 <div className="flex-1">
-                  <p className="font-medium">Request from user {req.sender}</p>
+                  <p className="font-medium truncate">User {req.sender?.substring(0, 8)}...</p>
+                  <p className="text-sm text-base-content/60">Wants to be your friend</p>
                 </div>
                 <button className="btn btn-sm btn-primary" onClick={() => handleAccept(req.id)}>
                   Accept

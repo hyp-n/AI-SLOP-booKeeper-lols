@@ -93,11 +93,6 @@ def delete_collection(collection_id):
     return jsonify({"message": "Collection deleted"}), 200
 
 
-@collections_bp.errorhandler(400)
-def collection_bad_request(e):
-    return jsonify({"error": "Bad request"}), 400
-
-
 @collections_bp.route("/<collection_id>/books", methods=["POST"])
 def add_book_to_collection(collection_id):
     """Add a book to a collection."""

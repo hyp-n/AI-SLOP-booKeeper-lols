@@ -175,11 +175,6 @@ def send_message(user, conv_id):
     return jsonify(msg.to_dict()), 201
 
 
-@messages_bp.errorhandler(400)
-def message_bad_request(e):
-    return jsonify({"error": "Bad request"}), 400
-
-
 @messages_bp.route("/conversations/<conv_id>/group/add", methods=["POST"])
 @token_required
 def add_to_group(user, conv_id):

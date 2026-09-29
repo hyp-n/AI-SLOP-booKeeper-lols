@@ -87,11 +87,6 @@ def add_book():
         if existing:
             return jsonify({"error": "Book with this ISBN already exists", "book": existing.to_dict()}), 409
 
-
-@books_bp.errorhandler(400)
-def book_bad_request(e):
-    return jsonify({"error": "Bad request"}), 400
-
     book = Book(
         isbn=isbn if isbn else None,
         title=title,

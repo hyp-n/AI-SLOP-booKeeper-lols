@@ -25,7 +25,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-function SortableBook({ book, onRemove }) {
+function SortableBook({ book, onRemove, actionLoading }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: book.id,
   });
@@ -232,7 +232,7 @@ export default function CollectionPage() {
                 >
                   <div className="space-y-2">
                     {books.map((book) => (
-                      <SortableBook key={book.id} book={book} onRemove={handleRemoveBook} />
+                      <SortableBook key={book.id} book={book} onRemove={handleRemoveBook} actionLoading={actionLoading} />
                     ))}
                   </div>
                 </SortableContext>
