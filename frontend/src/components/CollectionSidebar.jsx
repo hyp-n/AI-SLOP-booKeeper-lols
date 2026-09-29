@@ -38,7 +38,7 @@ export default function CollectionSidebar({ onDragStart, onDragEnd }) {
     const bookId = e.dataTransfer.getData("text/plain");
     if (!bookId) return;
     try {
-      await addToCollection(collectionId, parseInt(bookId));
+      await addToCollection(collectionId, bookId);
       // Refresh collections to update book counts
       loadCollections();
       if (onDragEnd) onDragEnd();

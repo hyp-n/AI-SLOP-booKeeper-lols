@@ -23,6 +23,11 @@ def get_progress(book_id):
     })
 
 
+@reading_bp.errorhandler(404)
+def reading_not_found(e):
+    return jsonify({"error": "Reading progress not found"}), 404
+
+
 @reading_bp.route("/<book_id>", methods=["PUT"])
 def update_progress(book_id):
     """Update reading progress for a book."""
@@ -30,12 +35,24 @@ def update_progress(book_id):
     if not book:
         return jsonify({"error": "Book not found"}), 404
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    if "current_page" in data and "total_pages" in data:
+        if data["current_page"] > data["total_pages"]:
+            return jsonify({"error": "current_page cannot be greater than total_pages"}), 400
 
     if "current_page" in data:
-        book.current_page = data["current_page"]
+        page = data["current_page"]
+        if not isinstance(page, int) or page < 0:
+            return jsonify({"error": "current_page must be a non-negative integer"}), 400
+        book.current_page = page
     if "total_pages" in data:
-        book.page_count = data["total_pages"]
+        total = data["total_pages"]
+        if not isinstance(total, int) or total < 0:
+            return jsonify({"error": "total_pages must be a non-negative integer"}), 400
+        book.page_count = total
     if "status" in data:
         old_status = book.reading_status
         book.reading_status = data["status"]
@@ -47,6 +64,8 @@ def update_progress(book_id):
             book.reading_finished_at = now
             book.current_page = book.page_count or book.current_page
             book.reading_percentage = 100.0
+        elif data["status"] not in ("want_to_read", "reading", "finished"):
+            return jsonify({"error": "Invalid status. Must be one of: want_to_read, reading, finished"}), 400
 
     # Auto-calculate percentage
     total = book.page_count
@@ -76,6 +95,11 @@ def update_progress(book_id):
     })
 
 
+@reading_bp.errorhandler(400)
+def reading_bad_request(e):
+    return jsonify({"error": "Bad request"}), 400
+
+
 @reading_bp.route("/stats", methods=["GET"])
 def get_stats():
     """Get overall reading statistics."""
@@ -98,3 +122,9 @@ def get_stats():
         "finished": finished,
         "total_pages_read": int(total_pages_read),
     })
+
+
+@reading_bp.errorhandler(500)
+def reading_internal_error(e):
+    db.session.rollback()
+    return jsonify({"error": "Internal server error"}), 500

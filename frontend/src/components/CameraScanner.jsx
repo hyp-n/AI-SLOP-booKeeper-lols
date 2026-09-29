@@ -5,6 +5,7 @@ export default function CameraScanner({ onScan, onClose }) {
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState("");
   const [hasPermission, setHasPermission] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
@@ -18,6 +19,7 @@ export default function CameraScanner({ onScan, onClose }) {
   }, []);
 
   const startScanning = async () => {
+    setScanning(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -26,20 +28,22 @@ export default function CameraScanner({ onScan, onClose }) {
           height: { ideal: 720 }
         } 
       });
-      
+       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setHasPermission(true);
         setIsScanning(true);
         setError("");
-        
+         
         // Start scanning for ISBNs
         scanForISBN();
       }
     } catch (err) {
       setError("Camera access denied. Please allow camera permissions and try again.");
       console.error("Camera error:", err);
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -148,14 +152,16 @@ export default function CameraScanner({ onScan, onClose }) {
           <button
             onClick={stopScanning}
             className="flex-1 bg-red-600 hover:bg-red-700 py-3 px-6 rounded-lg font-medium transition-colors"
+            disabled={scanning}
           >
             Cancel
           </button>
           <button
             onClick={() => onScan("demo-isbn")}
             className="flex-1 bg-green-600 hover:bg-green-700 py-3 px-6 rounded-lg font-medium transition-colors"
+            disabled={scanning}
           >
-            Scan ISBN
+            {scanning ? "Scanning..." : "Scan ISBN"}
           </button>
         </div>
         

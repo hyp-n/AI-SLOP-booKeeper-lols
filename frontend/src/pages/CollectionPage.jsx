@@ -56,7 +56,7 @@ function SortableBook({ book, onRemove }) {
         </Link>
         <p className="text-xs text-base-content/60 truncate">{book.author}</p>
       </div>
-      <button className="btn btn-xs btn-ghost" onClick={() => onRemove(book.id)}>
+      <button className="btn btn-xs btn-ghost" onClick={() => onRemove(book.id)} disabled={actionLoading}>
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
         </svg>
@@ -72,6 +72,7 @@ export default function CollectionPage() {
   const [allBooks, setAllBooks] = useState([]);
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [showAddBook, setShowAddBook] = useState(false);
 
   const sensors = useSensors(
@@ -125,6 +126,7 @@ export default function CollectionPage() {
   };
 
   const handleAddBook = async (bookId) => {
+    setActionLoading(true);
     try {
       await addToCollection(id, bookId);
       const book = allBooks.find((b) => b.id === bookId);
@@ -132,25 +134,33 @@ export default function CollectionPage() {
       setShowAddBook(false);
     } catch (err) {
       console.error("Failed to add book:", err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleRemoveBook = async (bookId) => {
+    setActionLoading(true);
     try {
       await removeFromCollection(id, bookId);
       setBooks(books.filter((b) => b.id !== bookId));
     } catch (err) {
       console.error("Failed to remove book:", err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleDeleteCollection = async () => {
     if (!confirm("Delete this collection? Books will stay in your library.")) return;
+    setActionLoading(true);
     try {
       await deleteCollection(id);
       navigate("/");
     } catch (err) {
       console.error("Failed to delete collection:", err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -185,7 +195,7 @@ export default function CollectionPage() {
             <p className="text-base-content/60">{collection.description}</p>
           )}
         </div>
-        <button className="btn btn-sm btn-ghost text-error" onClick={handleDeleteCollection}>
+        <button className="btn btn-sm btn-ghost text-error" onClick={handleDeleteCollection} disabled={actionLoading}>
           Delete Collection
         </button>
       </div>
@@ -251,6 +261,7 @@ export default function CollectionPage() {
                       <button
                         className="btn btn-xs btn-primary"
                         onClick={() => handleAddBook(book.id)}
+                        disabled={actionLoading}
                       >
                         Add
                       </button>

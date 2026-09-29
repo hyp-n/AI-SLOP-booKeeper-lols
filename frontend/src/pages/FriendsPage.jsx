@@ -8,6 +8,7 @@ export default function FriendsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -33,11 +34,14 @@ export default function FriendsPage() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
+    setSearchLoading(true);
     try {
       const { data } = await searchUsers(searchQuery.trim());
       setSearchResults(data);
     } catch (err) {
       setError("Search failed");
+    } finally {
+      setSearchLoading(false);
     }
   };
 
@@ -90,7 +94,9 @@ export default function FriendsPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <button type="submit" className="btn btn-primary">Search</button>
+        <button type="submit" className="btn btn-primary" disabled={searchLoading}>
+          {searchLoading ? <span className="loading loading-spinner loading-sm"></span> : "Search"}
+        </button>
       </form>
 
       {error && (

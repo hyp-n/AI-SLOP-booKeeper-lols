@@ -49,8 +49,11 @@ export default function BookCard({ book, draggable, onDragStart, onDragEnd }) {
           </span>
         </div>
         {book.reading_percentage > 0 && (
-          <div className="progress progress-primary h-1.5 mt-2">
-            <div className="progress-bar" style={{ width: `${book.reading_percentage}%` }}></div>
+          <div className="flex items-center gap-2 mt-2">
+            <div className="progress progress-primary h-1.5 flex-1">
+              <div className="progress-bar" style={{ width: `${book.reading_percentage}%` }}></div>
+            </div>
+            <span className="text-xs text-base-content/50">{book.reading_percentage}%</span>
           </div>
         )}
       </div>

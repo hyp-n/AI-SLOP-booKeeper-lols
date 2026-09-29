@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getConversations, getMessages, sendMessage, createConversation, getFriends, addToGroup, renameGroup } from "../api/client";
+import { getConversations, getMessages, sendMessage, createConversation, getFriends } from "../api/client";
 
 export default function ChatPage() {
   const { convId } = useParams();
@@ -11,6 +11,8 @@ export default function ChatPage() {
   const [friends, setFriends] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
   const [polling, setPolling] = useState(true);
   const messagesEndRef = useRef(null);
   const pollingRef = useRef(null);
@@ -93,13 +95,83 @@ export default function ChatPage() {
     e.preventDefault();
     if (!newMessage.trim() || !convId) return;
 
+    setSending(true);
+    setError("");
     try {
       const { data } = await sendMessage(convId, newMessage.trim());
       setMessages((prev) => [...prev, data]);
       setNewMessage("");
     } catch (err) {
-      console.error("Failed to send message:", err);
+      setError(err.response?.data?.error || "Failed to send message");
+    } finally {
+      setSending(false);
     }
+  };
+
+  const getOtherParticipant = (conv) => {
+    if (!conv.participant_details || conv.participant_details.length < 2) return null;
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    return conv.participant_details.find(p => p.id !== currentUser.id) || conv.participant_details[0];
+  };
+
+  const getConversationDisplay = (conv) => {
+    if (conv.is_group) return conv.group_name;
+    const other = getOtherParticipant(conv);
+    return other?.name || other?.email || "Chat";
+  };
+
+  const getConversationAvatar = (conv) => {
+    if (conv.is_group) return "G";
+    const other = getOtherParticipant(conv);
+    return other?.name?.[0]?.toUpperCase() || other?.email?.[0]?.toUpperCase() || "?";
+  };
+
+  const getConversationSubtitle = (conv) => {
+    if (conv.is_group) {
+      const count = conv.participant_details?.length || 0;
+      return `${count} member${count !== 1 ? "s" : ""}`;
+    }
+    const other = getOtherParticipant(conv);
+    return other?.email || "";
+  };
+
+  const getLastMessagePreview = (conv) => {
+    if (!conv.last_message) return null;
+    const content = conv.last_message.content;
+    return content.length > 50 ? content.substring(0, 50) + "..." : content;
+  };
+
+  const formatTime = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const isOwnMessage = (msg) => {
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    return msg.sender === currentUser.id;
+  };
+
+  const getMessageStatus = (msg) => {
+    if (!msg.read_by || !Array.isArray(msg.read_by)) return "sent";
+    const otherParticipant = getOtherParticipant(activeConv);
+    if (!otherParticipant) return "sent";
+    return msg.read_by.includes(otherParticipant.id) ? "read" : "delivered";
+  };
+
+  const getConversationLastMessageTime = (conv) => {
+    if (!conv.last_message) return null;
+    return formatTime(conv.last_message.created_at);
   };
 
   const handleStartChat = async (friendId) => {
@@ -110,21 +182,6 @@ export default function ChatPage() {
       window.location.href = `/chat/${data.id}`;
     } catch (err) {
       console.error("Failed to create conversation:", err);
-    }
-  };
-
-  const handleCreateGroup = async (name, memberIds) => {
-    try {
-      const { data } = await createConversation({
-        participant_ids: memberIds,
-        is_group: true,
-        group_name: name,
-      });
-      setShowNewChat(false);
-      loadData();
-      window.location.href = `/chat/${data.id}`;
-    } catch (err) {
-      console.error("Failed to create group:", err);
     }
   };
 
@@ -163,17 +220,23 @@ export default function ChatPage() {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-content">
-                    {conv.is_group ? "G" : conv.participant_details?.[0]?.name?.[0]?.toUpperCase() || "?"}
+                    {getConversationAvatar(conv)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">
-                      {conv.is_group
-                        ? conv.group_name
-                        : conv.participant_details?.find(p => p.id !== conv.participant_details[0]?.id)?.name || "Chat"}
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium truncate">
+                        {getConversationDisplay(conv)}
+                      </p>
+                      <p className="text-xs text-base-content/40 ml-2">
+                        {getConversationLastMessageTime(conv)}
+                      </p>
+                    </div>
+                    <p className="text-xs text-base-content/50 truncate">
+                      {getConversationSubtitle(conv)}
                     </p>
                     {conv.last_message && (
                       <p className="text-sm text-base-content/60 truncate">
-                        {conv.last_message.content}
+                        {getLastMessagePreview(conv)}
                       </p>
                     )}
                   </div>
@@ -191,9 +254,7 @@ export default function ChatPage() {
             {/* Chat Header */}
             <div className="p-4 border-b border-base-300">
               <h3 className="font-bold">
-                {activeConv.is_group
-                  ? activeConv.group_name
-                  : activeConv.participant_details?.find(p => p.id !== activeConv.participant_details[0]?.id)?.name || "Chat"}
+                {getConversationDisplay(activeConv)}
               </h3>
             </div>
 
@@ -202,25 +263,35 @@ export default function ChatPage() {
               {messages.length === 0 ? (
                 <p className="text-center text-base-content/50 py-8">No messages yet</p>
               ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender === activeConv.participant_details?.[0]?.id ? "justify-end" : "justify-start"}`}
-                  >
+                messages.map((msg) => {
+                  const own = isOwnMessage(msg);
+                  return (
                     <div
-                      className={`max-w-[70%] rounded-lg p-3 ${
-                        msg.sender === activeConv.participant_details?.[0]?.id
-                          ? "bg-primary text-primary-content"
-                          : "bg-base-200"
-                      }`}
+                      key={msg.id}
+                      className={`flex ${own ? "justify-end" : "justify-start"}`}
                     >
-                      <p className="text-sm">{msg.content}</p>
-                      <p className="text-xs opacity-60 mt-1">
-                        {new Date(msg.created_at).toLocaleTimeString()}
-                      </p>
+                      <div
+                        className={`max-w-[70%] rounded-lg p-3 ${
+                          own
+                            ? "bg-primary text-primary-content"
+                            : "bg-base-200"
+                        }`}
+                      >
+                        <p className="text-sm">{msg.content}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs opacity-60">
+                            {formatTime(msg.created_at)}
+                          </p>
+                          {own && (
+                            <p className="text-xs opacity-60">
+                              {getMessageStatus(msg)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
               <div ref={messagesEndRef} />
             </div>
@@ -235,8 +306,15 @@ export default function ChatPage() {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                 />
-                <button type="submit" className="btn btn-primary">Send</button>
+                <button type="submit" className="btn btn-primary" disabled={!newMessage.trim() || sending}>
+                  {sending ? <span className="loading loading-spinner loading-sm"></span> : "Send"}
+                </button>
               </div>
+              {error && (
+                <div className="alert alert-error mt-2">
+                  <span>{error}</span>
+                </div>
+              )}
             </form>
           </>
         ) : (
@@ -256,17 +334,31 @@ export default function ChatPage() {
         <div className="modal modal-open">
           <div className="modal-box">
             <h3 className="font-bold text-lg mb-4">New Conversation</h3>
-            <div className="space-y-2">
-              {friends.map((friend) => (
-                <button
-                  key={friend.id}
-                  className="btn btn-ghost btn-block justify-start"
-                  onClick={() => handleStartChat(friend.id)}
-                >
-                  {friend.name || friend.email}
-                </button>
-              ))}
-            </div>
+            {friends.length === 0 ? (
+              <p className="text-base-content/50">No friends yet. Add friends from the Friends page first.</p>
+            ) : (
+              <div className="space-y-2">
+                {friends.map((friend) => (
+                  <button
+                    key={friend.id}
+                    className="btn btn-ghost btn-block justify-start"
+                    onClick={() => handleStartChat(friend.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-content text-sm">
+                        {friend.name?.[0]?.toUpperCase() || friend.email[0].toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="font-medium truncate">{friend.name || friend.email}</p>
+                        {friend.name && (
+                          <p className="text-sm text-base-content/60 truncate">{friend.email}</p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="modal-action">
               <button className="btn" onClick={() => setShowNewChat(false)}>Close</button>
             </div>

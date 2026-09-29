@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
@@ -60,6 +60,19 @@ def create_app():
             logging.getLogger(__name__).warning(
                 "Could not create database tables (database may not be available): %s", e
             )
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return jsonify({"error": "Not found"}), 404
+
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        return jsonify({"error": "Method not allowed"}), 405
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        db.session.rollback()
+        return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/")
     def serve_frontend():

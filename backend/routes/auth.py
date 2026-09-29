@@ -19,15 +19,17 @@ def token_required(f):
             user = User.query.get(data["user_id"])
             if not user:
                 return jsonify({"error": "User not found"}), 401
-        except:
-            return jsonify({"error": "Invalid token"}), 401
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            return jsonify({"error": "Invalid or expired token"}), 401
         return f(user, *args, **kwargs)
     return decorated
 
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     email = data.get("email", "").strip().lower()
     password = data.get("password", "")
     name = data.get("name", "").strip()
@@ -58,7 +60,7 @@ def register():
     db.session.commit()
 
     token = jwt.encode(
-        {"user_id": user.id, "exp": datetime.now(timezone.utc) + timedelta(days=7)},
+        {"user_id": user.id, "exp": datetime.now(timezone.utc) + timedelta(days=current_app.config.get("JWT_EXPIRY_DAYS", 7))},
         current_app.config["SECRET_KEY"],
         algorithm="HS256"
     )
@@ -68,7 +70,9 @@ def register():
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     email = data.get("email", "").strip().lower()
     password = data.get("password", "")
 
@@ -83,12 +87,17 @@ def login():
     db.session.commit()
 
     token = jwt.encode(
-        {"user_id": user.id, "exp": datetime.now(timezone.utc) + timedelta(days=7)},
+        {"user_id": user.id, "exp": datetime.now(timezone.utc) + timedelta(days=current_app.config.get("JWT_EXPIRY_DAYS", 7))},
         current_app.config["SECRET_KEY"],
         algorithm="HS256"
     )
 
     return jsonify({"token": token, "user": user.to_dict()})
+
+
+@auth_bp.errorhandler(400)
+def auth_bad_request(e):
+    return jsonify({"error": "Bad request"}), 400
 
 
 @auth_bp.route("/me", methods=["GET"])
@@ -100,7 +109,9 @@ def get_me(user):
 @auth_bp.route("/me", methods=["PUT"])
 @token_required
 def update_me(user):
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
 
     if "name" in data:
         user.name = data["name"]
@@ -113,3 +124,19 @@ def update_me(user):
 
     db.session.commit()
     return jsonify(user.to_dict())
+
+
+@auth_bp.errorhandler(400)
+def auth_bad_request(e):
+    return jsonify({"error": "Bad request"}), 400
+
+
+@auth_bp.errorhandler(404)
+def auth_not_found(e):
+    return jsonify({"error": "User not found"}), 404
+
+
+@auth_bp.errorhandler(500)
+def auth_internal_error(e):
+    db.session.rollback()
+    return jsonify({"error": "Internal server error"}), 500

@@ -22,6 +22,11 @@ def get_friends(user):
     return jsonify([f.to_dict() for f in friends])
 
 
+@social_bp.errorhandler(404)
+def social_not_found(e):
+    return jsonify({"error": "Resource not found"}), 404
+
+
 @social_bp.route("/friends/requests", methods=["GET"])
 @token_required
 def get_friend_requests(user):
@@ -47,15 +52,26 @@ def get_friend_requests(user):
     })
 
 
+@social_bp.errorhandler(500)
+def social_internal_error(e):
+    db.session.rollback()
+    return jsonify({"error": "Internal server error"}), 500
+
+
 @social_bp.route("/friends/request", methods=["POST"])
 @token_required
 def send_friend_request(user):
     """Send a friend request."""
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     friend_email = data.get("email", "").strip().lower()
 
     if not friend_email:
         return jsonify({"error": "Email required"}), 400
+
+    if "@" not in friend_email:
+        return jsonify({"error": "Invalid email format"}), 400
 
     friend = User.query.filter_by(email=friend_email).first()
     if not friend:
@@ -112,6 +128,9 @@ def accept_friend_request(user, request_id):
     if fr.receiver_id != user.id:
         return jsonify({"error": "Not authorized"}), 403
 
+    if fr.status != "pending":
+        return jsonify({"error": "Request is not pending"}), 400
+
     fr.status = "accepted"
     db.session.commit()
 
@@ -134,6 +153,9 @@ def decline_friend_request(user, request_id):
 
     if fr.receiver_id != user.id:
         return jsonify({"error": "Not authorized"}), 403
+
+    if fr.status != "pending":
+        return jsonify({"error": "Request is not pending"}), 400
 
     fr.status = "declined"
     db.session.commit()
@@ -165,9 +187,12 @@ def remove_friend(user, friend_id):
 @token_required
 def search_users(user):
     """Search users by name or email."""
-    q = request.args.get("q", "")
+    q = request.args.get("q", "").strip()
     if not q:
         return jsonify([])
+
+    if len(q) > 100:
+        return jsonify({"error": "Search query too long"}), 400
 
     like = f"%{q}%"
     users = User.query.filter(
@@ -185,6 +210,8 @@ def search_users(user):
 @token_required
 def get_user_profile(user, user_id):
     """Get a user's public profile."""
+    if not user_id or len(user_id) > 36:
+        return jsonify({"error": "Invalid user ID"}), 400
     profile_user = User.query.get(user_id)
     if not profile_user:
         return jsonify({"error": "User not found"}), 404
@@ -211,3 +238,8 @@ def get_user_profile(user, user_id):
         result["friendship_status"] = None
 
     return jsonify(result)
+
+
+@social_bp.errorhandler(400)
+def social_bad_request(e):
+    return jsonify({"error": "Bad request"}), 400

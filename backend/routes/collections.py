@@ -14,11 +14,16 @@ def list_collections():
 @collections_bp.route("/", methods=["POST"])
 def create_collection():
     """Create a new collection."""
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     name = data.get("name", "").strip()
 
     if not name:
         return jsonify({"error": "Name is required"}), 400
+
+    if len(name) > 200:
+        return jsonify({"error": "Name must be 200 characters or less"}), 400
 
     max_coll = BookCollection.query.order_by(BookCollection.order_index.desc()).first()
     order_index = (max_coll.order_index + 1) if max_coll else 0
@@ -62,7 +67,9 @@ def update_collection(collection_id):
     if not coll:
         return jsonify({"error": "Collection not found"}), 404
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     if "name" in data:
         coll.name = data["name"]
     if "description" in data:
@@ -86,6 +93,11 @@ def delete_collection(collection_id):
     return jsonify({"message": "Collection deleted"}), 200
 
 
+@collections_bp.errorhandler(400)
+def collection_bad_request(e):
+    return jsonify({"error": "Bad request"}), 400
+
+
 @collections_bp.route("/<collection_id>/books", methods=["POST"])
 def add_book_to_collection(collection_id):
     """Add a book to a collection."""
@@ -93,11 +105,16 @@ def add_book_to_collection(collection_id):
     if not coll:
         return jsonify({"error": "Collection not found"}), 404
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     book_id = data.get("book_id")
 
     if not book_id:
         return jsonify({"error": "book_id is required"}), 400
+
+    if not isinstance(book_id, str) or len(book_id) > 36:
+        return jsonify({"error": "Invalid book_id"}), 400
 
     book = Book.query.get(book_id)
     if not book:
@@ -145,15 +162,23 @@ def remove_book_from_collection(collection_id, book_id):
     if cb:
         db.session.delete(cb)
         db.session.commit()
-
-    return jsonify({"message": "Book removed from collection"}), 200
+        return jsonify({"message": "Book removed from collection"}), 200
+    return jsonify({"error": "Book not in collection"}), 404
 
 
 @collections_bp.route("/<collection_id>/reorder", methods=["PUT"])
 def reorder_books(collection_id):
     """Reorder books within a collection."""
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     book_ids = data.get("book_ids", [])
+
+    if not isinstance(book_ids, list):
+        return jsonify({"error": "book_ids must be an array"}), 400
+
+    if len(book_ids) > 1000:
+        return jsonify({"error": "Too many books (max 1000)"}), 400
 
     for index, book_id in enumerate(book_ids):
         cb = CollectionBook.query.filter_by(
@@ -164,3 +189,14 @@ def reorder_books(collection_id):
 
     db.session.commit()
     return jsonify({"message": "Order updated"}), 200
+
+
+@collections_bp.errorhandler(404)
+def collection_not_found(e):
+    return jsonify({"error": "Collection not found"}), 404
+
+
+@collections_bp.errorhandler(500)
+def collection_internal_error(e):
+    db.session.rollback()
+    return jsonify({"error": "Internal server error"}), 500

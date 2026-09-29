@@ -9,9 +9,12 @@ ebooks_bp = Blueprint("ebooks", __name__)
 @ebooks_bp.route("/search", methods=["GET"])
 def search_ebooks():
     """Search for ebook sources by query (ISBN or title)."""
-    query = request.args.get("q", "")
+    query = request.args.get("q", "").strip()
     if not query:
         return jsonify({"error": "Query parameter 'q' is required"}), 400
+
+    if len(query) > 200:
+        return jsonify({"error": "Query too long (max 200 characters)"}), 400
 
     results = []
 
@@ -46,9 +49,16 @@ def search_ebooks():
     return jsonify(results)
 
 
+@ebooks_bp.errorhandler(400)
+def ebook_bad_request(e):
+    return jsonify({"error": "Bad request"}), 400
+
+
 @ebooks_bp.route("/book/<book_id>", methods=["GET"])
 def get_book_ebooks(book_id):
     """Get saved ebook sources for a book."""
+    if not book_id or len(book_id) > 36:
+        return jsonify({"error": "Invalid book ID"}), 400
     book = Book.query.get(book_id)
     if not book:
         return jsonify({"error": "Book not found"}), 404
@@ -69,12 +79,22 @@ def save_ebook_source(book_id):
     if not book:
         return jsonify({"error": "Book not found"}), 404
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    external_url = data.get("external_url", "").strip()
+    if not external_url:
+        return jsonify({"error": "external_url is required"}), 400
+
+    if not external_url.startswith(("http://", "https://")):
+        return jsonify({"error": "external_url must be a valid URL"}), 400
+
     source = EbookSource(
         book_id=book_id,
         source_name=data.get("source_name", "unknown"),
         format=data.get("format", "epub"),
-        external_url=data.get("external_url", ""),
+        external_url=external_url,
         file_size=data.get("file_size"),
     )
 
@@ -87,3 +107,9 @@ def save_ebook_source(book_id):
         "external_url": source.external_url,
         "file_size": source.file_size,
     }), 201
+
+
+@ebooks_bp.errorhandler(500)
+def ebook_internal_error(e):
+    db.session.rollback()
+    return jsonify({"error": "Internal server error"}), 500

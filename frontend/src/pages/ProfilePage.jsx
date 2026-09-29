@@ -7,6 +7,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -30,38 +31,50 @@ export default function ProfilePage() {
   };
 
   const handleAddFriend = async () => {
+    setActionLoading(true);
     try {
       await sendFriendRequest(profile.email);
       loadData();
     } catch (err) {
       setError(err.response?.data?.error || "Failed to send request");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleAccept = async () => {
+    setActionLoading(true);
     try {
       await acceptFriendRequest(profile.friend_request_id);
       loadData();
     } catch (err) {
       setError("Failed to accept request");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleDecline = async () => {
+    setActionLoading(true);
     try {
       await declineFriendRequest(profile.friend_request_id);
       loadData();
     } catch (err) {
       setError("Failed to decline request");
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleRemoveFriend = async () => {
+    setActionLoading(true);
     try {
       await removeFriend(userId);
       loadData();
     } catch (err) {
       setError("Failed to remove friend");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -106,22 +119,22 @@ export default function ProfilePage() {
           {!isOwnProfile && (
             <div className="flex gap-2">
               {profile.friendship_status === "accepted" && (
-                <button className="btn btn-sm btn-error" onClick={handleRemoveFriend}>
+                <button className="btn btn-sm btn-error" onClick={handleRemoveFriend} disabled={actionLoading}>
                   Remove Friend
                 </button>
               )}
               {profile.friendship_status === "pending" && profile.friend_request_id && (
                 <>
-                  <button className="btn btn-sm btn-primary" onClick={handleAccept}>
+                  <button className="btn btn-sm btn-primary" onClick={handleAccept} disabled={actionLoading}>
                     Accept
                   </button>
-                  <button className="btn btn-sm btn-ghost" onClick={handleDecline}>
+                  <button className="btn btn-sm btn-ghost" onClick={handleDecline} disabled={actionLoading}>
                     Decline
                   </button>
                 </>
               )}
               {!profile.friendship_status && (
-                <button className="btn btn-sm btn-primary" onClick={handleAddFriend}>
+                <button className="btn btn-sm btn-primary" onClick={handleAddFriend} disabled={actionLoading}>
                   Add Friend
                 </button>
               )}

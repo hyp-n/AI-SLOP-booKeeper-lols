@@ -42,7 +42,7 @@ export default function ReadingTracker({ bookId, pageCount, onUpdate }) {
   };
 
   const handlePageChange = async (e) => {
-    const page = parseInt(e.target.value) || 0;
+    const page = Math.max(0, parseInt(e.target.value) || 0);
     setCurrentPage(page);
 
     setSaving(true);
@@ -117,6 +117,7 @@ export default function ReadingTracker({ bookId, pageCount, onUpdate }) {
             value={currentPage}
             onChange={handlePageChange}
             placeholder="Current page"
+            aria-label="Current page number"
           />
         </div>
 

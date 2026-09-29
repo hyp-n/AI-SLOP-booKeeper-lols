@@ -7,6 +7,7 @@ export default function LibraryPage() {
   const [books, setBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [viewMode, setViewMode] = useState("grid"); // grid | list
@@ -66,11 +67,14 @@ export default function LibraryPage() {
 
   const handleDelete = async (bookId) => {
     if (!confirm("Remove this book from your library?")) return;
+    setActionLoading(true);
     try {
       await deleteBook(bookId);
       setBooks(books.filter((b) => b.id !== bookId));
     } catch (err) {
       console.error("Failed to delete book:", err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -138,7 +142,7 @@ export default function LibraryPage() {
           </button>
         </div>
 
-        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+        <button className="btn btn-primary" onClick={() => setShowAddModal(true)} disabled={actionLoading}>
           + Add Book
         </button>
       </div>

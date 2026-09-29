@@ -41,6 +41,8 @@ def list_books():
 @books_bp.route("/lookup/<isbn>", methods=["GET"])
 def lookup(isbn):
     """Look up a book by ISBN via OpenLibrary."""
+    if not isbn or len(isbn) > 20:
+        return jsonify({"error": "Invalid ISBN"}), 400
     result = lookup_isbn(isbn)
     if result:
         return jsonify(result)
@@ -50,9 +52,11 @@ def lookup(isbn):
 @books_bp.route("/search", methods=["GET"])
 def search():
     """Search OpenLibrary by query string."""
-    query = request.args.get("q", "")
+    query = request.args.get("q", "").strip()
     if not query:
         return jsonify({"error": "Query parameter 'q' is required"}), 400
+    if len(query) > 200:
+        return jsonify({"error": "Query too long (max 200 characters)"}), 400
     results = search_books(query)
     return jsonify(results)
 
@@ -60,7 +64,9 @@ def search():
 @books_bp.route("/", methods=["POST"])
 def add_book():
     """Add a book to the library."""
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
 
     isbn = (data.get("isbn") or "").strip()
     title = (data.get("title") or "").strip()
@@ -69,11 +75,22 @@ def add_book():
     if not title:
         return jsonify({"error": "Title is required"}), 400
 
+    if len(title) > 500:
+        return jsonify({"error": "Title must be 500 characters or less"}), 400
+
+    if isbn and len(isbn) > 20:
+        return jsonify({"error": "ISBN must be 20 characters or less"}), 400
+
     # Check for duplicate by ISBN
     if isbn:
         existing = Book.query.filter_by(isbn=isbn).first()
         if existing:
             return jsonify({"error": "Book with this ISBN already exists", "book": existing.to_dict()}), 409
+
+
+@books_bp.errorhandler(400)
+def book_bad_request(e):
+    return jsonify({"error": "Bad request"}), 400
 
     book = Book(
         isbn=isbn if isbn else None,
@@ -98,6 +115,9 @@ def add_book():
 @books_bp.route("/add-by-isbn/<isbn>", methods=["POST"])
 def add_by_isbn(isbn):
     """Look up ISBN and add to library in one step."""
+    if not isbn or len(isbn) > 20:
+        return jsonify({"error": "Invalid ISBN"}), 400
+
     # Check if already in library
     existing = Book.query.filter_by(isbn=isbn).first()
     if existing:
@@ -138,6 +158,17 @@ def get_book(book_id):
     return jsonify(book.to_dict())
 
 
+@books_bp.errorhandler(404)
+def book_not_found(e):
+    return jsonify({"error": "Book not found"}), 404
+
+
+@books_bp.errorhandler(500)
+def book_internal_error(e):
+    db.session.rollback()
+    return jsonify({"error": "Internal server error"}), 500
+
+
 @books_bp.route("/<book_id>", methods=["PUT"])
 def update_book(book_id):
     """Update book metadata."""
@@ -145,7 +176,9 @@ def update_book(book_id):
     if not book:
         return jsonify({"error": "Book not found"}), 404
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     for field in ["title", "author", "cover_url", "description", "publisher", "published_date", "page_count", "language"]:
         if field in data:
             setattr(book, field, data[field])
@@ -164,3 +197,9 @@ def delete_book(book_id):
     db.session.delete(book)
     db.session.commit()
     return jsonify({"message": "Book deleted"}), 200
+
+
+@books_bp.errorhandler(500)
+def book_internal_error(e):
+    db.session.rollback()
+    return jsonify({"error": "Internal server error"}), 500

@@ -19,6 +19,9 @@ def get_conversations(user):
         .all()
     )
 
+    if not convs:
+        return jsonify([])
+
     result = []
     for conv in convs:
         conv_dict = conv.to_dict()
@@ -48,13 +51,21 @@ def get_conversations(user):
 @token_required
 def create_conversation(user):
     """Create a 1-on-1 conversation or group chat."""
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     participant_ids = data.get("participant_ids", [])
     is_group = data.get("is_group", False)
     group_name = data.get("group_name")
 
     if not participant_ids:
         return jsonify({"error": "participant_ids required"}), 400
+
+    if is_group and not group_name:
+        return jsonify({"error": "group_name is required for group chats"}), 400
+
+    if not is_group and len(participant_ids) != 1:
+        return jsonify({"error": "1-on-1 conversations require exactly 1 participant"}), 400
 
     # Check if 1-on-1 conversation already exists
     if not is_group and len(participant_ids) == 1:
@@ -88,6 +99,8 @@ def create_conversation(user):
     cp = ConversationParticipant(conversation_id=conv.id, user_id=user.id)
     db.session.add(cp)
     for pid in participant_ids:
+        if pid == user.id:
+            continue
         cp = ConversationParticipant(conversation_id=conv.id, user_id=pid)
         db.session.add(cp)
 
@@ -99,6 +112,8 @@ def create_conversation(user):
 @token_required
 def get_messages(user, conv_id):
     """Get messages in a conversation."""
+    if not conv_id or len(conv_id) > 36:
+        return jsonify({"error": "Invalid conversation ID"}), 400
     conv = Conversation.query.get(conv_id)
     if not conv:
         return jsonify({"error": "Conversation not found"}), 404
@@ -122,6 +137,8 @@ def get_messages(user, conv_id):
 @token_required
 def send_message(user, conv_id):
     """Send a message in a conversation."""
+    if not conv_id or len(conv_id) > 36:
+        return jsonify({"error": "Invalid conversation ID"}), 400
     conv = Conversation.query.get(conv_id)
     if not conv:
         return jsonify({"error": "Conversation not found"}), 404
@@ -133,11 +150,16 @@ def send_message(user, conv_id):
     if not is_participant:
         return jsonify({"error": "Not authorized"}), 403
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     content = data.get("content", "").strip()
 
     if not content:
         return jsonify({"error": "Content required"}), 400
+
+    if len(content) > 4000:
+        return jsonify({"error": "Message too long (max 4000 characters)"}), 400
 
     msg = Message(
         sender_id=user.id,
@@ -151,6 +173,11 @@ def send_message(user, conv_id):
     db.session.commit()
 
     return jsonify(msg.to_dict()), 201
+
+
+@messages_bp.errorhandler(400)
+def message_bad_request(e):
+    return jsonify({"error": "Bad request"}), 400
 
 
 @messages_bp.route("/conversations/<conv_id>/group/add", methods=["POST"])
@@ -167,11 +194,16 @@ def add_to_group(user, conv_id):
     if conv.group_admin != user.id:
         return jsonify({"error": "Only group admin can add members"}), 403
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     new_member_id = data.get("user_id")
 
     if not new_member_id:
         return jsonify({"error": "user_id required"}), 400
+
+    if new_member_id == user.id:
+        return jsonify({"error": "You are already a member"}), 400
 
     # Check if already a member
     existing = ConversationParticipant.query.filter_by(
@@ -200,13 +232,29 @@ def rename_group(user, conv_id):
     if conv.group_admin != user.id:
         return jsonify({"error": "Only group admin can rename"}), 403
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     new_name = data.get("name", "").strip()
 
     if not new_name:
         return jsonify({"error": "Name required"}), 400
 
+    if len(new_name) > 200:
+        return jsonify({"error": "Name must be 200 characters or less"}), 400
+
     conv.group_name = new_name
     db.session.commit()
 
     return jsonify(conv.to_dict())
+
+
+@messages_bp.errorhandler(404)
+def message_not_found(e):
+    return jsonify({"error": "Conversation not found"}), 404
+
+
+@messages_bp.errorhandler(500)
+def message_internal_error(e):
+    db.session.rollback()
+    return jsonify({"error": "Internal server error"}), 500
