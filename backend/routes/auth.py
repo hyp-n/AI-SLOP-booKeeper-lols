@@ -1,9 +1,11 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, redirect, url_for
 from models import db, User
 import bcrypt
 import jwt
+import requests
 from datetime import datetime, timezone, timedelta
 from functools import wraps
+from urllib.parse import urlencode
 
 auth_bp = Blueprint("auth", __name__)
 
