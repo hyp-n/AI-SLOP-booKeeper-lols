@@ -44,6 +44,9 @@ JWT_EXPIRY_DAYS = int(os.environ.get("JWT_EXPIRY_DAYS", "30"))
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 
+# Frontend URL for OAuth redirect
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5000")
+
 # Comma-separated list of allowed browser origins
 ALLOWED_ORIGINS = [
     o.strip()
