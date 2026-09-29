@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>booKeeper</title>
+    <script>
+      // GitHub Pages SPA redirect handling
+      // If we have a ?path= query param (from 404.html redirect), restore the path
+      (function() {
+        var path = new URLSearchParams(window.location.search).get('path');
+        if (path) {
+          // Remove the query param and restore the path
+          // Use replaceState to avoid adding a history entry
+          window.history.replaceState({}, '', '/' + path);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

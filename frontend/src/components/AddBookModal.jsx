@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { addBookByIsbn, searchBooks, addBook } from "../api/client";
 
 export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
@@ -8,7 +8,6 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("isbn"); // isbn | search
-  const scannerRef = useRef(null);
   const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
@@ -130,7 +129,7 @@ export default function AddBookModal({ isOpen, onClose, onBookAdded }) {
             </button>
 
             {scanning && (
-              <div ref={scannerRef} className="rounded overflow-hidden border">
+              <div className="rounded overflow-hidden border">
                 <p className="text-sm text-center p-2">Camera scanner active</p>
               </div>
             )}

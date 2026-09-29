@@ -27,7 +27,7 @@ export default function EbookSearch({ bookTitle, bookIsbn }) {
   };
 
   const handleSearchByIsbn = async () => {
-    if (!bookIsbn) return;
+    if (!bookIsbn || loading) return;
     setQuery(bookIsbn);
     setLoading(true);
     setError("");
@@ -66,7 +66,7 @@ export default function EbookSearch({ bookTitle, bookIsbn }) {
             disabled={loading}
             title="Search by ISBN"
           >
-            ISBN
+            {loading ? <span className="loading loading-spinner loading-sm"></span> : "ISBN"}
           </button>
         )}
       </form>

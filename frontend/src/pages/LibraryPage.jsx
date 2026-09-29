@@ -7,6 +7,7 @@ export default function LibraryPage() {
   const [books, setBooks] = useState([]);
   const [filteredBooks, setFilteredBooks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [viewMode, setViewMode] = useState("grid"); // grid | list
@@ -66,11 +67,14 @@ export default function LibraryPage() {
 
   const handleDelete = async (bookId) => {
     if (!confirm("Remove this book from your library?")) return;
+    setActionLoading(true);
     try {
       await deleteBook(bookId);
       setBooks(books.filter((b) => b.id !== bookId));
     } catch (err) {
       console.error("Failed to delete book:", err);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -138,7 +142,7 @@ export default function LibraryPage() {
           </button>
         </div>
 
-        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+        <button className="btn btn-primary" onClick={() => setShowAddModal(true)} disabled={actionLoading}>
           + Add Book
         </button>
       </div>
@@ -173,7 +177,7 @@ export default function LibraryPage() {
                 <p className="font-medium truncate">{book.title}</p>
                 <p className="text-sm text-base-content/60 truncate">{book.author}</p>
               </div>
-              <span className="badge">{book.reading_status}</span>
+              <span className="badge">{book.reading_status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
               {book.page_count && <span className="text-sm text-base-content/50">{book.page_count}p</span>}
             </div>
           ))}

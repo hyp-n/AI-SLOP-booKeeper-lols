@@ -129,7 +129,7 @@ export default function LoginPage() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.464.59l.775 4.58a2 2 0 01-.684 2.175L9.79 20.21A2.194 2.194 0 0012 21v-7h6.79a2 2 0 011.464-.59l.775-4.58a2 2 0 00-.684-2.175L15.07 5.59A2 2 0 0016.93 3H9a2 2 0 00-1.464.59L3 9z" />
               </svg>
-              Scan ISBN with Camera
+              {loading ? "Scanning..." : "Scan ISBN with Camera"}
             </button>
           </form>
 

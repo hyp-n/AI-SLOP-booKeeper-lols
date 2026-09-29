@@ -35,6 +35,12 @@ export default function Navbar({ theme, toggleTheme }) {
               Friends
             </Link>
             <Link
+              to="/collections"
+              className={`btn btn-sm ${location.pathname.startsWith("/collection") ? "btn-primary" : "btn-ghost"}`}
+            >
+              Collections
+            </Link>
+            <Link
               to="/chat"
               className={`btn btn-sm ${location.pathname.startsWith("/chat") ? "btn-primary" : "btn-ghost"}`}
             >

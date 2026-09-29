@@ -5,6 +5,7 @@ export default function StatsPage() {
   const [stats, setStats] = useState(null);
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -20,6 +21,19 @@ export default function StatsPage() {
       console.error("Failed to load stats:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const [statsRes, booksRes] = await Promise.all([getStats(), getBooks()]);
+      setStats(statsRes.data);
+      setBooks(booksRes.data);
+    } catch (err) {
+      console.error("Failed to refresh stats:", err);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -42,7 +56,12 @@ export default function StatsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Reading Stats</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Reading Stats</h1>
+        <button className="btn btn-sm btn-ghost" onClick={handleRefresh} disabled={refreshing}>
+          {refreshing ? <span className="loading loading-spinner loading-sm"></span> : "Refresh"}
+        </button>
+      </div>
 
       {/* Overview cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

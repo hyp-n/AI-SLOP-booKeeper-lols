@@ -1,139 +1,208 @@
+import uuid
 from datetime import datetime, timezone
-from bson.objectid import ObjectId
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
 
 
 def utcnow():
     return datetime.now(timezone.utc)
 
 
-def to_object_id(id_str):
-    """Convert string to ObjectId, return None if invalid."""
-    if not id_str:
-        return None
-    try:
-        return ObjectId(id_str)
-    except:
-        return None
+def generate_id():
+    return str(uuid.uuid4())
 
 
-def serialize_id(doc):
-    """Convert _id to id string in a document dict."""
-    if doc and "_id" in doc:
-        doc["id"] = str(doc["_id"])
-        del doc["_id"]
-    return doc
+class Book(db.Model):
+    __tablename__ = "books"
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_id)
+    isbn = db.Column(db.String(20), nullable=True)
+    title = db.Column(db.String(500), nullable=False)
+    author = db.Column(db.String(500), nullable=True)
+    cover_url = db.Column(db.Text, nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    publisher = db.Column(db.String(500), nullable=True)
+    published_date = db.Column(db.String(50), nullable=True)
+    page_count = db.Column(db.Integer, nullable=True)
+    language = db.Column(db.String(10), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    # Reading progress (embedded)
+    reading_status = db.Column(db.String(20), default="want_to_read")
+    current_page = db.Column(db.Integer, default=0)
+    reading_percentage = db.Column(db.Float, default=0.0)
+    reading_started_at = db.Column(db.DateTime, nullable=True)
+    reading_finished_at = db.Column(db.DateTime, nullable=True)
+    reading_updated_at = db.Column(db.DateTime, default=utcnow)
+
+    # Relationships
+    collections = db.relationship("CollectionBook", back_populates="book", cascade="all, delete-orphan")
+    ebook_sources = db.relationship("EbookSource", back_populates="book", cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "isbn": self.isbn,
+            "title": self.title,
+            "author": self.author,
+            "cover_url": self.cover_url,
+            "description": self.description,
+            "publisher": self.publisher,
+            "published_date": self.published_date,
+            "page_count": self.page_count,
+            "language": self.language,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "reading_status": self.reading_status,
+            "current_page": self.current_page,
+            "reading_percentage": self.reading_percentage,
+        }
 
 
-# Book collection name
-BOOKS_COLLECTION = "books"
-COLLECTIONS_COLLECTION = "collections"
-USERS_COLLECTION = "users"
-FRIEND_REQUESTS_COLLECTION = "friend_requests"
-MESSAGES_COLLECTION = "messages"
-CONVERSATIONS_COLLECTION = "conversations"
+class BookCollection(db.Model):
+    __tablename__ = "collections"
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_id)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    order_index = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=utcnow)
+
+    # Relationships
+    books = db.relationship("CollectionBook", back_populates="collection", cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "order_index": self.order_index,
+            "book_count": len(self.books),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
-def get_books_collection(mongo):
-    return mongo.db[BOOKS_COLLECTION]
+class CollectionBook(db.Model):
+    __tablename__ = "collection_books"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    collection_id = db.Column(db.String(36), db.ForeignKey("collections.id"), nullable=False)
+    book_id = db.Column(db.String(36), db.ForeignKey("books.id"), nullable=False)
+    order_index = db.Column(db.Integer, default=0)
+    added_at = db.Column(db.DateTime, default=utcnow)
+
+    # Relationships
+    collection = db.relationship("BookCollection", back_populates="books")
+    book = db.relationship("Book", back_populates="collections")
 
 
-def get_collections_collection(mongo):
-    return mongo.db[COLLECTIONS_COLLECTION]
+class User(db.Model):
+    __tablename__ = "users"
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_id)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)
+    name = db.Column(db.String(200), nullable=True)
+    avatar_url = db.Column(db.Text, nullable=True)
+    bio = db.Column(db.Text, nullable=True)
+    currently_reading = db.Column(db.String(36), nullable=True)
+    oauth_provider = db.Column(db.String(50), nullable=True)
+    oauth_id = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    last_login = db.Column(db.DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "email": self.email,
+            "name": self.name,
+            "avatar_url": self.avatar_url,
+            "bio": self.bio,
+            "currently_reading": self.currently_reading,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
-def get_users_collection(mongo):
-    return mongo.db[USERS_COLLECTION]
+class FriendRequest(db.Model):
+    __tablename__ = "friend_requests"
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_id)
+    sender_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    receiver_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    status = db.Column(db.String(20), default="pending")
+    created_at = db.Column(db.DateTime, default=utcnow)
 
 
-def get_friend_requests_collection(mongo):
-    return mongo.db[FRIEND_REQUESTS_COLLECTION]
+class Conversation(db.Model):
+    __tablename__ = "conversations"
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_id)
+    is_group = db.Column(db.Boolean, default=False)
+    group_name = db.Column(db.String(200), nullable=True)
+    group_admin = db.Column(db.String(36), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    last_message_at = db.Column(db.DateTime, nullable=True)
+
+    # Relationships
+    participants = db.relationship("ConversationParticipant", back_populates="conversation", cascade="all, delete-orphan")
+    messages = db.relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "is_group": self.is_group,
+            "group_name": self.group_name,
+            "group_admin": self.group_admin,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_message_at": self.last_message_at.isoformat() if self.last_message_at else None,
+        }
 
 
-def get_messages_collection(mongo):
-    return mongo.db[MESSAGES_COLLECTION]
+class ConversationParticipant(db.Model):
+    __tablename__ = "conversation_participants"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    conversation_id = db.Column(db.String(36), db.ForeignKey("conversations.id"), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+
+    # Relationships
+    conversation = db.relationship("Conversation", back_populates="participants")
 
 
-def get_conversations_collection(mongo):
-    return mongo.db[CONVERSATIONS_COLLECTION]
+class Message(db.Model):
+    __tablename__ = "messages"
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_id)
+    sender_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    conversation_id = db.Column(db.String(36), db.ForeignKey("conversations.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    read_by = db.Column(db.JSON, default=list)
+
+    # Relationships
+    conversation = db.relationship("Conversation", back_populates="messages")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "sender": self.sender_id,
+            "conversation_id": self.conversation_id,
+            "content": self.content,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "read_by": self.read_by or [],
+        }
 
 
-def book_to_dict(book):
-    """Convert a Book document to a JSON-serializable dict."""
-    if not book:
-        return None
-    book_id = str(book.get("_id", ""))
-    rp = book.get("reading_progress", {}) or {}
-    return {
-        "id": book_id,
-        "isbn": book.get("isbn"),
-        "title": book.get("title", ""),
-        "author": book.get("author"),
-        "cover_url": book.get("cover_url"),
-        "description": book.get("description"),
-        "publisher": book.get("publisher"),
-        "published_date": book.get("published_date"),
-        "page_count": book.get("page_count"),
-        "language": book.get("language"),
-        "created_at": book.get("created_at").isoformat() if book.get("created_at") else None,
-        "reading_status": rp.get("status", "want_to_read"),
-        "current_page": rp.get("current_page", 0),
-        "reading_percentage": rp.get("percentage", 0),
-    }
+class EbookSource(db.Model):
+    __tablename__ = "ebook_sources"
 
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    book_id = db.Column(db.String(36), db.ForeignKey("books.id"), nullable=False)
+    source_name = db.Column(db.String(200))
+    format = db.Column(db.String(50))
+    external_url = db.Column(db.Text)
+    file_size = db.Column(db.String(100), nullable=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
-def collection_to_dict(coll):
-    """Convert a Collection document to a JSON-serializable dict."""
-    if not coll:
-        return None
-    return {
-        "id": str(coll.get("_id", "")),
-        "name": coll.get("name", ""),
-        "description": coll.get("description", ""),
-        "order_index": coll.get("order_index", 0),
-        "book_count": coll.get("book_count", 0),
-        "created_at": coll.get("created_at").isoformat() if coll.get("created_at") else None,
-    }
-
-
-def user_to_dict(user):
-    """Convert a User document to a JSON-serializable dict."""
-    if not user:
-        return None
-    return {
-        "id": str(user.get("_id", "")),
-        "email": user.get("email", ""),
-        "name": user.get("name", ""),
-        "avatar_url": user.get("avatar_url"),
-        "bio": user.get("bio", ""),
-        "currently_reading": str(user.get("currently_reading")) if user.get("currently_reading") else None,
-        "created_at": user.get("created_at").isoformat() if user.get("created_at") else None,
-    }
-
-
-def message_to_dict(msg):
-    """Convert a Message document to a JSON-serializable dict."""
-    if not msg:
-        return None
-    return {
-        "id": str(msg.get("_id", "")),
-        "sender": str(msg.get("sender", "")),
-        "conversation_id": str(msg.get("conversation_id", "")),
-        "content": msg.get("content", ""),
-        "created_at": msg.get("created_at").isoformat() if msg.get("created_at") else None,
-        "read_by": [str(uid) for uid in msg.get("read_by", [])],
-    }
-
-
-def conversation_to_dict(conv):
-    """Convert a Conversation document to a JSON-serializable dict."""
-    if not conv:
-        return None
-    return {
-        "id": str(conv.get("_id", "")),
-        "participants": [str(p) for p in conv.get("participants", [])],
-        "is_group": conv.get("is_group", False),
-        "group_name": conv.get("group_name"),
-        "group_admin": str(conv.get("group_admin")) if conv.get("group_admin") else None,
-        "created_at": conv.get("created_at").isoformat() if conv.get("created_at") else None,
-        "last_message_at": conv.get("last_message_at").isoformat() if conv.get("last_message_at") else None,
-    }
+    # Relationships
+    book = db.relationship("Book", back_populates="ebook_sources")
